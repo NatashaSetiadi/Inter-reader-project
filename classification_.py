@@ -11,6 +11,8 @@ from sklearn.preprocessing import label_binarize
 from sklearn.feature_selection import f_regression
 from scipy.stats import linregress
 from scipy.stats import spearmanr
+import csv 
+from sklearn.preprocessing import Normalizer, StandardScaler
 
 csv_input = pd.read_csv('features_final_no_diag.csv')
 mask_dir = os.listdir('Original_Annotations/Original_Annotations/px1Label_SHT')
@@ -34,19 +36,32 @@ labels = pd.DataFrame(labels)
 
 X_train, X_temp, y_train, y_temp = train_test_split(data, labels, test_size=0.4, random_state=42)
 X_test, X_val, y_test, y_val = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
 drop_x = X_train
 drop_x.drop(columns=['PatientID'], axis=1, inplace=True)
-print(drop_x, y_train)
+scaler = StandardScaler()
+df_normalized = pd.DataFrame(scaler.fit_transform(drop_x), columns=drop_x.columns)
+
+# drop_x = X_train
+# drop_x.drop(columns=['PatientID'], axis=1, inplace=True)
+# drop_x.iloc[:,:] = Normalizer(norm='l2').fit_transform(drop_x)
+# print(drop_x, y_train)
 
 selected_features = []
 y_train_flat = y_train.values.ravel() 
-for feature in drop_x.columns:
-    r_value, p_value = pearsonr(drop_x[feature], y_train_flat)
-    print(p_value, r_value)
-    if p_value < 0.05 and abs(r_value) > 0.8:
-        selected_features.append(feature)
+with open('values3.csv', 'w', newline='') as csvfile:
+        fieldnames = ['Features', 'P values', 'R values']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for feature in df_normalized.columns:
+            r_value, p_value = pearsonr(df_normalized[feature], y_train_flat)
+            print(p_value, r_value)
+            if p_value < 0.05 and abs(r_value) > 0.8:
+                selected_features.append(feature)
+            writer.writerow({'Features': feature, 'P values': p_value, 'R values': r_value})
 
 print("Selected Features:", selected_features)
+
 
 X_train_selected = X_train[selected_features]
 X_val_selected = X_val[selected_features]
